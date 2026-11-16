@@ -36,9 +36,8 @@
         }
     </script>
     <style>
-        /* ป้องกันการเด้งและ scroll บนมือถือ */
         html, body {
-            height: 100dvh; /* ใช้ dvh เพื่อให้พอดีกับหน้าจอมือถือเป๊ะๆ */
+            height: 100dvh;
             background-color: #0f172a;
             color: #f8fafc;
             overflow: hidden;
@@ -104,7 +103,7 @@
         </button>
     </div>
 
-    <!-- MAIN GAME SCREEN (Responsive 100dvh บนมือถือ / Pop-up บน PC) -->
+    <!-- MAIN GAME SCREEN -->
     <div id="game-screen" class="bg-card-bg w-full h-[100dvh] md:h-[90vh] md:max-w-4xl md:max-h-[850px] md:rounded-2xl overflow-hidden flex flex-col hidden shadow-2xl md:border md:border-slate-700 relative">
         
         <!-- Header -->
@@ -148,7 +147,7 @@
                 </div>
             </div>
 
-            <!-- Submit Button (ถูกซ่อน / แสดงขึ้นเมื่อเรียงครบ) -->
+            <!-- Submit Button -->
             <button id="submit-btn" onclick="manualSubmit()" disabled class="w-full max-w-3xl bg-slate-700/50 text-slate-400 font-bold py-3 sm:py-4 rounded-xl text-sm sm:text-lg transition-all duration-300 border border-slate-600 cursor-not-allowed mb-4 sm:mb-6 shrink-0">
                 ส่งคำตอบ
             </button>
@@ -195,7 +194,8 @@
             <button id="next-btn" onclick="nextQuestion()" class="w-full bg-teal-btn hover:bg-teal-main text-white font-bold py-3 sm:py-4 rounded-xl text-lg sm:text-xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(20,184,166,0.5)]">
                 ลุยข้อต่อไป!
             </button>
-            <button id="restart-btn" onclick="restartGame()" class="hidden w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 sm:py-4 rounded-xl text-lg sm:text-xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(244,63,94,0.5)]">
+            <!-- แก้ไขปุ่มตรงนี้ ให้เรียกฟังก์ชัน handleGameOverClick แทนการรีเซ็ตทันที -->
+            <button id="restart-btn" onclick="handleGameOverClick()" class="hidden w-full bg-rose-500 hover:bg-rose-600 text-white font-bold py-3 sm:py-4 rounded-xl text-lg sm:text-xl transition-transform active:scale-95 shadow-[0_0_15px_rgba(244,63,94,0.5)]">
                 เล่นใหม่อีกครั้ง
             </button>
         </div>
@@ -203,11 +203,12 @@
 
     <script>
         // --- WEBHOOK CONFIGURATION ---
+        // เปลี่ยนข้อความข้างล่างนี้เป็น URL Webhook ของคุณให้ถูกต้อง
         const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1571933030862299247/s7tgEQJmxbtjpxkwMas4y7W-A0pFuNmCY1cbv9IQlufJeUWCK7guXpjRuzJ2C-WEw3Bh"; 
 
         // --- SENTENCE DATA (นำ 500 ประโยคมาวางทับตรงนี้ได้เลย) ---
         const SENTENCES = [
-            { en: "Hello, how are you?", th: "สวัสดี คุณสบายดีไหม?", hint: "Greeting + Question Word (How)" },
+             { en: "Hello, how are you?", th: "สวัสดี คุณสบายดีไหม?", hint: "Greeting + Question Word (How)" },
             { en: "My name is Peter.", th: "ฉันชื่อปีเตอร์", hint: "Subject (My name) + Verb to be" },
             { en: "I love my mother.", th: "ฉันรักแม่ของฉัน", hint: "Subject + Verb + Object" },
             { en: "The cake looks delicious.", th: "เค้กดูน่าอร่อยนะ", hint: "Subject + Linking Verb + Adjective" },
@@ -666,7 +667,10 @@
 
         // --- DISCORD WEBHOOK ---
         function sendScoreToDiscord() {
-            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL_HERE") return;
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL_HERE") {
+                showToast("⚠️ ไม่ได้ตั้งค่า Webhook URL แจ้งคะแนนไม่ได้");
+                return;
+            }
             
             const message = {
                 content: `📢 **จบเกมเรียงประโยค!**\n👤 ผู้เล่น: **${playerName}**\n🏆 ทำคะแนนสุทธิไปได้: **${score}** คะแนน\n🔥 สถิติตอบถูกติดกันสูงสุด: **${streak}** ข้อ`
@@ -677,7 +681,7 @@
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(message)
             }).then(() => {
-                showToast("ส่งคะแนนเข้า Discord แล้ว!");
+                showToast("✅ ส่งคะแนนเข้า Discord เรียบร้อยแล้ว!");
             }).catch(err => console.error("Discord Webhook Error:", err));
         }
 
@@ -708,6 +712,12 @@
             document.getElementById('game-screen').classList.remove('hidden');
             
             if (audioCtx.state === 'suspended') audioCtx.resume();
+            restartGame();
+        }
+
+        // ฟังก์ชันใหม่ที่รวบการส่ง Discord และ รีเซ็ตเกม ไว้ด้วยกันเมื่อกดปุ่ม "เล่นใหม่อีกครั้ง"
+        function handleGameOverClick() {
+            sendScoreToDiscord();
             restartGame();
         }
 
@@ -783,12 +793,7 @@
         // --- GAMEPLAY LOGIC ---
         function nextQuestion() {
             document.getElementById('mystery-overlay').classList.add('hidden');
-            if(isGameOver) {
-                sendScoreToDiscord();
-                restartGame();
-                return;
-            }
-
+            
             if(isFrozen) isFrozen = false;
             document.getElementById('hint-display').innerText = "";
 
@@ -804,11 +809,9 @@
         function updateSubmitButton() {
             const submitBtn = document.getElementById('submit-btn');
             if (!slots.includes(null)) {
-                // เต็มทุกช่อง เปิดใช้งานปุ่ม
                 submitBtn.className = "w-full max-w-3xl bg-teal-500 hover:bg-teal-400 text-white font-bold py-3 sm:py-4 rounded-xl text-sm sm:text-lg transition-all duration-300 shadow-[0_0_15px_rgba(20,184,166,0.4)] border border-teal-400 active:scale-95 mb-4 sm:mb-6 shrink-0";
                 submitBtn.disabled = false;
             } else {
-                // ยังไม่เต็ม ปิดใช้งาน
                 submitBtn.className = "w-full max-w-3xl bg-slate-700/50 text-slate-400 font-bold py-3 sm:py-4 rounded-xl text-sm sm:text-lg transition-all duration-300 border border-slate-600 cursor-not-allowed mb-4 sm:mb-6 shrink-0";
                 submitBtn.disabled = true;
             }
@@ -884,7 +887,7 @@
         }
 
         function manualSubmit() {
-            if (isFrozen || slots.includes(null)) return; // กันเหนียว
+            if (isFrozen || slots.includes(null)) return; 
 
             const currentAnswer = slots.join(" ");
             const correctAnswer = currentQuestion.en;
@@ -972,7 +975,7 @@
         function handleTimeOut() {
             playSound('wrong');
             streak = 0;
-            lives--; // หักหัวใจเมื่อเวลาหมด
+            lives--; 
             updateHUD();
 
             if (lives <= 0) {
