@@ -761,7 +761,7 @@
             isChecking = false;
 
             // Apply modifiers & calculate time
-            let baseTime = streak >= 10 ? 8 : (streak >= 5 ? 16 : 24);
+            let baseTime = streak >= 10 ? 30 : (streak >= 5 ? 45 : 60);
             maxTime = baseTime + modifiers.nextTimeBonus;
             
             if (modifiers.halveTimeNextRound) {
