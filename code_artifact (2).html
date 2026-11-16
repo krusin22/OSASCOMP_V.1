@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>เกมเรียงประโยคภาษาอังกฤษ - Mystery Box Edition</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@400;500;600;700&family=Mali:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Mali', sans-serif;
+            background-color: #0f172a; /* Slate 900 for dark theme */
+            min-height: 100vh;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.5rem;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* Dark Glassmorphism Theme */
+        .glass-panel {
+            background-color: rgba(30, 41, 59, 0.85); /* Slate 800 */
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7);
+        }
+        .header-teal {
+            background: linear-gradient(135deg, #0d9488 0%, #0f766e 100%);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .drop-zone {
+            background-color: rgba(15, 23, 42, 0.6);
+            box-shadow: inset 0 4px 6px rgba(0,0,0,0.4);
+        }
+
+        .word-btn {
+            font-family: 'Baloo 2', 'Mali', sans-serif;
+            background-color: #334155;
+            border: 1px solid #475569;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            min-height: 44px;
+            touch-action: none; 
+        }
+        .word-btn:hover { background-color: #475569; transform: translateY(-2px); }
+        .word-btn:active { transform: translateY(1px); }
+
+        .powerup-btn {
+            transition: all 0.2s;
+        }
+        .powerup-btn:hover:not(:disabled) { transform: scale(1.05); }
+        .powerup-btn:disabled { opacity: 0.5; filter: grayscale(1); cursor: not-allowed; }
+
+        /* Timer Bar */
+        .timer-track { background-color: #334155; border-radius: 99px; overflow: hidden; height: 8px; }
+        .timer-fill { 
+            height: 100%; 
+            background-color: #10b981; 
+            transition: width 1s linear, background-color 0.5s ease; 
+        }
+
+        /* Animations */
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            20%, 60% { transform: translateX(-6px); }
+            40%, 80% { transform: translateX(6px); }
+        }
+        .anim-shake { animation: shake 0.4s ease-in-out; border-color: #ef4444 !important; }
+        .anim-success { border-color: #10b981 !important; background-color: rgba(16, 185, 129, 0.15) !important; }
+        .anim-timeout { border-color: #f59e0b !important; background-color: rgba(245, 158, 11, 0.15) !important; }
+        .btn-shake { animation: shake 0.3s ease-in-out; }
+
+        .is-frozen {
+            pointer-events: none;
+            opacity: 0.6;
+            filter: hue-rotate(180deg) grayscale(0.5);
+        }
+
+        /* Chest Box */
+        .chest-box {
+            font-size: 3rem;
+            cursor: pointer;
+            transition: all 0.3s;
+            filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.5));
+        }
+        .chest-box:hover {
+            transform: scale(1.1) translateY(-10px);
+        }
+        .chest-opened {
+            font-size: 1.5rem;
+            animation: bounceIn 0.5s ease-out;
+            pointer-events: none;
+        }
+        .chest-hidden {
+            opacity: 0;
+            transform: scale(0.5);
+            pointer-events: none;
+        }
+
+        @keyframes bounceIn {
+            0% { transform: scale(0.3); opacity: 0; }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+    </style>
+</head>
+<body oncontextmenu="return false;">
+
+    <!-- Main Game Container -->
+    <div id="gameContainer" class="w-full max-w-3xl glass-panel rounded-2xl overflow-hidden flex flex-col opacity-0 transition-opacity duration-700 pointer-events-none relative">
+        
+        <!-- Header -->
+        <div class="header-teal p-3 md:p-4 flex flex-wrap justify-between items-center gap-2">
+            <div class="flex items-center gap-2 md:gap-3">
+                <div class="bg-black/20 p-2 rounded-lg">
+                    <svg class="w-5 h-5 md:w-6 md:h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"></path></svg>
+                </div>
+                <div>
+                    <h1 class="text-white font-bold text-base md:text-lg leading-tight">Sentence Builder</h1>
+                    <p class="text-teal-200 text-xs font-semibold">Mystery Box Edition</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stats & Timer Bar -->
+        <div class="bg-black/40 px-4 py-2 border-b border-gray-700">
+            <div class="flex justify-between items-center text-sm font-medium text-white mb-2">
+                <div class="flex items-center gap-4">
+                    <span title="Score" class="flex items-center gap-1 text-blue-300">⭐ <span id="scoreEl">0</span></span>
+                    <span title="Streak" class="flex items-center gap-1 text-orange-400">🔥 <span id="streakEl">0</span></span>
+                    <span title="Hearts" class="flex items-center gap-1 text-pink-400">❤️ <span id="heartsEl">5</span></span>
+                </div>
+                <div class="text-xs text-gray-400">Time: <span id="timeTextEl" class="text-white font-bold">24s</span></div>
+            </div>
+            <!-- Timer Track -->
+            <div class="timer-track w-full">
+                <div id="timerFill" class="timer-fill" style="width: 100%"></div>
+            </div>
+        </div>
+
+        <!-- Question Content -->
+        <div class="p-4 md:p-6 flex-1 flex flex-col gap-4">
+            
+            <div class="text-center">
+                <h2 id="thaiHint" class="text-lg md:text-xl font-bold text-white min-h-[32px] drop-shadow-md">
+                    <!-- Thai text -->
+                </h2>
+                <p id="grammarHint" class="text-yellow-300 text-xs md:text-sm mt-1 hidden bg-yellow-900/30 inline-block px-3 py-1 rounded-full border border-yellow-700/50">
+                    <!-- Grammar hint -->
+                </p>
+            </div>
+
+            <!-- Target Area -->
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between items-end px-1">
+                    <span class="text-xs font-semibold text-gray-400">ช่องวางคำตอบ (แตะเพื่อเอาออก)</span>
+                </div>
+                <div id="targetArea" class="drop-zone rounded-xl min-h-[80px] p-3 flex flex-wrap content-start gap-2 border-2 border-dashed border-gray-600 transition-colors duration-300">
+                </div>
+            </div>
+
+            <!-- Word Bank -->
+            <div class="flex flex-col gap-1">
+                <div class="flex justify-between items-end px-1">
+                    <span class="text-xs font-semibold text-gray-400">คลังคำศัพท์ (แตะเพื่อเลือก)</span>
+                </div>
+                <div id="wordBank" class="bg-black/30 rounded-xl min-h-[100px] p-3 flex flex-wrap content-start gap-2 border border-gray-700">
+                </div>
+            </div>
+
+            <!-- Feedback Message -->
+            <div id="feedbackMsg" class="h-6 text-center font-bold text-sm md:text-base opacity-0 transition-opacity"></div>
+            
+            <!-- Helpers (Cost Time) -->
+            <div class="mt-auto pt-2 border-t border-gray-700/50 flex justify-center gap-3 md:gap-6">
+                <button onclick="useHint()" id="btnHint" class="powerup-btn flex flex-col items-center bg-slate-800 p-2 rounded-xl border border-slate-600 min-w-[70px]">
+                    <span class="text-xl mb-1">🔍</span>
+                    <span class="text-[10px] text-red-400 font-bold">-3 วิ</span>
+                </button>
+                <button onclick="useBroom()" id="btnBroom" class="powerup-btn flex flex-col items-center bg-slate-800 p-2 rounded-xl border border-slate-600 min-w-[70px]">
+                    <span class="text-xl mb-1">🧹</span>
+                    <span class="text-[10px] text-red-400 font-bold">-2 วิ</span>
+                </button>
+                <button onclick="useLightbulb()" id="btnLightbulb" class="powerup-btn flex flex-col items-center bg-slate-800 p-2 rounded-xl border border-slate-600 min-w-[70px]">
+                    <span class="text-xl mb-1">💡</span>
+                    <span class="text-[10px] text-red-400 font-bold">-2 วิ</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="startScreen" class="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/90 backdrop-blur-md transition-opacity duration-500">
+        <div class="text-center p-6 bg-slate-800 border border-slate-600 rounded-2xl shadow-2xl max-w-sm w-full mx-4">
+            <h1 class="text-3xl font-bold text-teal-400 mb-2 font-['Baloo_2']">Sentence Builder</h1>
+            <p class="text-gray-300 text-sm mb-4">ระบบเวลาแบบ Dynamic! ยิ่ง Streak เยอะ เวลายิ่งน้อยลง</p>
+            <ul class="text-left text-xs text-gray-400 mb-6 space-y-2 bg-black/30 p-3 rounded-lg">
+                <li>❤️ มี 5 หัวใจ/ข้อ ตอบผิด -1 หัวใจ และหัก 5 แต้ม</li>
+                <li>⚡ ตัวช่วยต้องแลกด้วยเวลา! (ระวังเวลาหมด)</li>
+                <li>🎁 เปิดกล่องสุ่มทุกครั้งที่ตอบถูก/ผิด</li>
+            </ul>
+            <input type="text" id="playerNameInput" placeholder="กรอกชื่อของคุณก่อนเริ่มเกม..." class="w-full bg-slate-700 text-white rounded-xl p-3 mb-4 border border-slate-500 focus:outline-none focus:border-teal-400 text-center font-bold">
+            <button onclick="initGame()" class="w-full bg-teal-600 hover:bg-teal-500 text-white font-bold text-lg py-3 rounded-xl shadow-lg transition-transform active:scale-95">
+                ▶ เริ่มเกม
+            </button>
+        </div>
+    </div>
+
+    <!-- Mystery Box Modal -->
+    <div id="mysteryModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 backdrop-blur-md p-4">
+        <div class="text-center max-w-lg w-full">
+            <h2 id="mysteryTitle" class="text-3xl font-bold text-white mb-2 drop-shadow-md">เลือกกล่องสุ่ม!</h2>
+            <p id="mysterySub" class="text-gray-300 text-sm mb-8">คุณอาจได้โบนัส หรือโดนแกล้ง...</p>
+            
+            <div class="flex justify-center gap-6 md:gap-10 mb-8" id="chestContainer">
+                <!-- Chests will be dynamically generated here to prevent the missing box bug -->
+            </div>
+
+            <div id="chestResult" class="min-h-[60px] text-xl font-bold text-yellow-400 mb-6 opacity-0 transition-opacity"></div>
+            
+            <button id="nextBtn" onclick="nextQuestion()" class="hidden mx-auto bg-blue-600 hover:bg-blue-500 text-white font-bold text-lg py-2 px-8 rounded-xl shadow-lg transition-transform active:scale-95">
+                ข้อต่อไป ▶
+            </button>
+        </div>
+    </div>
+
+    <!-- Discord Toast Notification -->
+    <div id="discordToast" class="fixed top-4 right-4 bg-indigo-600 text-white px-4 py-3 rounded-xl shadow-2xl transform translate-x-[150%] transition-transform duration-300 z-[60] flex items-center gap-3 border border-indigo-400 font-bold">
+        <span class="text-2xl">📢</span>
+        <span>ส่งคะแนนไปยัง Discord แล้ว!</span>
+    </div>
+
+    <script>
+        const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1571933030862299247/s7tgEQJmxbtjpxkwMas4y7W-A0pFuNmCY1cbv9IQlufJeUWCK7guXpjRuzJ2C-WEw3Bh"; // <-- ใส่ URL Webhook ของคุณที่นี่
+        let playerName = "";
+
+        // 40+ sentences
+        const SENTENCES = [
+            { en: "Hello, how are you?", th: "สวัสดี คุณสบายดีไหม?", hint: "Greeting + Question Word (How)" },
+            { en: "My name is Peter.", th: "ฉันชื่อปีเตอร์", hint: "Subject (My name) + Verb to be" },
+            { en: "I love my mother.", th: "ฉันรักแม่ของฉัน", hint: "Subject + Verb + Object" },
+            { en: "He is a smart kid.", th: "เขาเป็นเด็กฉลาด", hint: "Adjective comes before Noun" },
+            { en: "I go to school.", th: "ฉันไปโรงเรียน", hint: "Subject + Verb + Preposition + Place" },
+            { en: "Where is my pencil?", th: "ดินสอของฉันอยู่ที่ไหน?", hint: "Wh-Question + Verb to be + Subject" },
+            { en: "The dog is barking.", th: "สุนัขกำลังเห่า", hint: "Present Continuous (is + V.ing)" },
+            { en: "I want to eat pizza.", th: "ฉันอยากกินพิซซ่า", hint: "Verb + to + Infinitive" },
+            { en: "She drinks milk everyday.", th: "เธอดื่มนมทุกวัน", hint: "Present Simple (Verb+s)" },
+            { en: "What is your favorite food?", th: "อาหารโปรดของคุณคืออะไร?", hint: "Wh-Question + Noun phrase" },
+            { en: "I wake up at six.", th: "ฉันตื่นนอนตอนหกโมง", hint: "Preposition of time (at)" },
+            { en: "Turn off the light.", th: "ปิดไฟด้วย", hint: "Imperative sentence" },
+            { en: "Let's play football.", th: "ไปเล่นฟุตบอลกันเถอะ", hint: "Let's + base verb" },
+            { en: "She is singing a song.", th: "เธอกำลังร้องเพลง", hint: "Present Continuous" },
+            { en: "Touch your head.", th: "จับหัวของคุณ", hint: "Imperative sentence" },
+            { en: "What time is it?", th: "เวลาเท่าไหร่แล้ว?", hint: "Question asking for time" },
+            { en: "The bank is near here.", th: "ธนาคารอยู่ใกล้ๆ ที่นี่", hint: "Preposition of place" },
+            { en: "I went to school yesterday.", th: "ฉันไปโรงเรียนมาเมื่อวานนี้", hint: "Past Simple" },
+            { en: "I will visit my grandma.", th: "ฉันจะไปเยี่ยมคุณย่า", hint: "Future Simple" },
+            { en: "Because I was tired.", th: "เพราะว่าฉันเหนื่อย", hint: "Conjunction + Past state" },
+            { en: "Do you like apples?", th: "คุณชอบแอปเปิ้ลไหม?", hint: "Yes/No Question (Do)" },
+            { en: "I don't know.", th: "ฉันไม่รู้", hint: "Negative sentence" },
+            { en: "Can you help me?", th: "คุณช่วยฉันได้ไหม?", hint: "Modal verb (Can)" },
+            { en: "It is raining outside.", th: "ข้างนอกฝนกำลังตก", hint: "Present Continuous" },
+            { en: "I have two cats.", th: "ฉันมีแมวสองตัว", hint: "Verb to have" },
+            { en: "They are playing games.", th: "พวกเขากำลังเล่นเกม", hint: "Present Continuous (are + V.ing)" },
+            { en: "Please sit down.", th: "กรุณานั่งลง", hint: "Polite request" },
+            { en: "How old are you?", th: "คุณอายุเท่าไหร่?", hint: "Question for age" },
+            { en: "This is my book.", th: "นี่คือหนังสือของฉัน", hint: "Demonstrative pronoun" },
+            { en: "That car is fast.", th: "รถคันนั้นเร็วมาก", hint: "Demonstrative + Noun + Adjective" },
+            { en: "I am eating breakfast.", th: "ฉันกำลังกินข้าวเช้า", hint: "Present Continuous" },
+            { en: "Did you sleep well?", th: "คุณนอนหลับสบายดีไหม?", hint: "Past Simple Question (Did)" },
+            { en: "We will go home soon.", th: "พวกเราจะกลับบ้านเร็วๆ นี้", hint: "Future Simple" },
+            { en: "He likes to read books.", th: "เขาชอบอ่านหนังสือ", hint: "Verb + to + Infinitive" },
+            { en: "Are you ready?", th: "คุณพร้อมไหม?", hint: "Yes/No Question (Verb to be)" },
+            { en: "The sky is blue.", th: "ท้องฟ้ามีสีฟ้า", hint: "Subject + Verb to be + Adjective" },
+            { en: "I bought a new shirt.", th: "ฉันซื้อเสื้อตัวใหม่", hint: "Past Simple (bought)" },
+            { en: "Don't run in the hall.", th: "อย่าวิ่งในโถงทางเดิน", hint: "Negative Imperative" },
+            { en: "My dad is a doctor.", th: "พ่อของฉันเป็นหมอ", hint: "Subject + Verb to be + Noun" },
+            { en: "Look at that bird!", th: "ดูนกตัวนั้นสิ!", hint: "Imperative with preposition" },
+
+            // ชุดที่ 2: กิจวัตรประจำวันและเวลา (Daily Routines & Time)
+            { en: "I brush my teeth every morning.", th: "ฉันแปรงฟันทุกเช้า", hint: "Present Simple + Time expression" },
+            { en: "She washes her face.", th: "เธอล้างหน้าของเธอ", hint: "Present Simple (Verb+es)" },
+            { en: "We have lunch at noon.", th: "พวกเรากินข้าวเที่ยงตอนเที่ยงตรง", hint: "Preposition of time (at)" },
+            { en: "He takes a shower in the evening.", th: "เขาอาบน้ำในตอนเย็น", hint: "Preposition of time (in)" },
+            { en: "They go to bed early.", th: "พวกเขาเข้านอนเร็ว", hint: "Subject + Verb + Adverb" },
+            { en: "I always do my homework.", th: "ฉันทำการบ้านเสมอ", hint: "Adverb of frequency (always)" },
+            { en: "She never arrives late.", th: "เธอไม่เคยมาสาย", hint: "Adverb of frequency (never)" },
+            { en: "What do you do on weekends?", th: "คุณทำอะไรในวันหยุดสุดสัปดาห์?", hint: "Wh-Question (Present Simple)" },
+            { en: "I usually read books.", th: "ฉันมักจะอ่านหนังสือ", hint: "Adverb of frequency (usually)" },
+            { en: "The train leaves at eight.", th: "รถไฟออกตอนแปดโมง", hint: "Present Simple for schedules" },
+
+            // ชุดที่ 3: อาหารและเครื่องดื่ม (Food & Drinks)
+            { en: "I am very hungry.", th: "ฉันหิวมากๆ", hint: "Subject + Verb to be + Adjective" },
+            { en: "Would you like some tea?", th: "คุณรับชาหน่อยไหม?", hint: "Polite offer (Would you like...)" },
+            { en: "He doesn't like vegetables.", th: "เขาไม่ชอบผัก", hint: "Negative Present Simple (doesn't)" },
+            { en: "This soup is too hot.", th: "ซุปนี้ร้อนเกินไป", hint: "Adverb of degree (too)" },
+            { en: "Can I have some water?", th: "ฉันขอน้ำหน่อยได้ไหม?", hint: "Request with Modal verb (Can)" },
+            { en: "They are eating dinner.", th: "พวกเขากำลังกินมื้อเย็น", hint: "Present Continuous" },
+            { en: "My favorite fruit is banana.", th: "ผลไม้ที่ฉันชอบคือกล้วย", hint: "Possessive adjective (My)" },
+            { en: "Do you eat spicy food?", th: "คุณกินอาหารเผ็ดไหม?", hint: "Yes/No Question (Do)" },
+            { en: "She cooked rice yesterday.", th: "เธอหุงข้าวเมื่อวานนี้", hint: "Past Simple (Regular Verb -ed)" },
+            { en: "The cake looks delicious.", th: "เค้กดูน่าอร่อยนะ", hint: "Linking verb (looks) + Adjective" },
+
+            // ชุดที่ 4: โรงเรียนและการเรียน (School & Studying)
+            { en: "Open your book to page ten.", th: "เปิดหนังสือไปที่หน้าสิบ", hint: "Imperative sentence" },
+            { en: "Listen to the teacher carefully.", th: "ฟังคุณครูอย่างตั้งใจ", hint: "Imperative + Adverb (carefully)" },
+            { en: "I forgot my pencil case.", th: "ฉันลืมกล่องดินสอ", hint: "Past Simple (Irregular Verb)" },
+            { en: "Raise your hand to answer.", th: "ยกมือขึ้นเพื่อตอบ", hint: "Verb + to + Infinitive" },
+            { en: "Math is very difficult.", th: "วิชาคณิตศาสตร์ยากมาก", hint: "Subject + Verb to be + Adverb + Adjective" },
+            { en: "We have an English test today.", th: "วันนี้เรามีสอบภาษาอังกฤษ", hint: "Subject + Verb to have" },
+            { en: "Can I go to the toilet?", th: "ฉันขออนุญาตไปห้องน้ำได้ไหม?", hint: "Asking for permission (Can I...)" },
+            { en: "Who is your best friend?", th: "ใครคือเพื่อนสนิทที่สุดของคุณ?", hint: "Wh-Question (Who)" },
+            { en: "Don't talk in the library.", th: "อย่าคุยกันในห้องสมุด", hint: "Negative Imperative" },
+            { en: "She is writing on the board.", th: "เธอกำลังเขียนบนกระดาน", hint: "Present Continuous" },
+
+            // ชุดที่ 5: สถานที่และการบอกทาง (Places & Directions)
+            { en: "Where is the nearest hospital?", th: "โรงพยาบาลที่ใกล้ที่สุดอยู่ที่ไหน?", hint: "Superlative Adjective (nearest)" },
+            { en: "Go straight and turn left.", th: "เดินตรงไปและเลี้ยวซ้าย", hint: "Imperative for directions" },
+            { en: "The cat is under the table.", th: "แมวอยู่ใต้โต๊ะ", hint: "Preposition of place (under)" },
+            { en: "My house is next to the park.", th: "บ้านของฉันอยู่ถัดจากสวนสาธารณะ", hint: "Preposition of place (next to)" },
+            { en: "They walked to the market.", th: "พวกเขาเดินไปตลาด", hint: "Past Simple (walked)" },
+            { en: "Is there a bank around here?", th: "แถวนี้มีธนาคารบ้างไหม?", hint: "Question (Is there...)" },
+            { en: "There are many trees in the garden.", th: "มีต้นไม้มากมายในสวน", hint: "There are + Plural Noun" },
+            { en: "I will wait at the bus stop.", th: "ฉันจะรอที่ป้ายรถเมล์", hint: "Future Simple + Preposition (at)" },
+            { en: "The museum is closed today.", th: "วันนี้พิพิธภัณฑ์ปิด", hint: "Passive Voice structure" },
+            { en: "Let's cross the street here.", th: "ข้ามถนนตรงนี้กันเถอะ", hint: "Let's + Base Verb" },
+
+            // ชุดที่ 6: งานอดิเรกและกีฬา (Hobbies & Sports)
+            { en: "I like playing basketball.", th: "ฉันชอบเล่นบาสเกตบอล", hint: "Verb (like) + Gerund (V.ing)" },
+            { en: "Can you ride a bicycle?", th: "คุณปั่นจักรยานเป็นไหม?", hint: "Modal verb (Can) for ability" },
+            { en: "He is good at swimming.", th: "เขาเก่งเรื่องการว่ายน้ำ", hint: "Adjective + Preposition (good at) + V.ing" },
+            { en: "We went camping last month.", th: "พวกเราไปตั้งแคมป์มาเมื่อเดือนที่แล้ว", hint: "Past Simple (went + V.ing)" },
+            { en: "She enjoys painting pictures.", th: "เธอสนุกกับการวาดภาพ", hint: "Verb (enjoys) + Gerund" },
+            { en: "Do you play any musical instruments?", th: "คุณเล่นเครื่องดนตรีอะไรบ้างไหม?", hint: "Yes/No Question" },
+            { en: "I can play the guitar.", th: "ฉันสามารถเล่นกีตาร์ได้", hint: "Modal verb (can)" },
+            { en: "They are watching a movie.", th: "พวกเขากำลังดูหนัง", hint: "Present Continuous" },
+            { en: "Let's go for a walk.", th: "ไปเดินเล่นกันเถอะ", hint: "Suggestion (Let's go...)" },
+            { en: "He collected stamps when he was young.", th: "เขาสะสมแสตมป์ตอนเขาเป็นเด็ก", hint: "Past Simple + Time clause" },
+
+            // ชุดที่ 7: อดีตและอนาคต (Past & Future)
+            { en: "I saw a monkey at the zoo.", th: "ฉันเห็นลิงที่สวนสัตว์", hint: "Past Simple (saw)" },
+            { en: "Where did you go yesterday?", th: "เมื่อวานคุณไปไหนมา?", hint: "Past Simple Question (did)" },
+            { en: "She didn't come to school.", th: "เธอไม่ได้มาโรงเรียน", hint: "Negative Past Simple (didn't)" },
+            { en: "We will travel to Japan next year.", th: "พวกเราจะเดินทางไปญี่ปุ่นปีหน้า", hint: "Future Simple (will)" },
+            { en: "Are you going to buy it?", th: "คุณกำลังจะซื้อมันใช่ไหม?", hint: "Future plan (be going to)" },
+            { en: "It is going to rain soon.", th: "ฝนกำลังจะตกในไม่ช้า", hint: "Future prediction (be going to)" },
+            { en: "I bought this shirt yesterday.", th: "ฉันซื้อเสื้อตัวนี้มาเมื่อวาน", hint: "Past Simple (bought)" },
+            { en: "What will you do tomorrow?", th: "พรุ่งนี้คุณจะทำอะไร?", hint: "Wh-Question (Future Simple)" },
+            { en: "They played football last weekend.", th: "พวกเขาเล่นฟุตบอลเมื่อสุดสัปดาห์ที่ผ่านมา", hint: "Past Simple (played)" },
+            { en: "I will call you later.", th: "เดี๋ยวฉันจะโทรหาคุณทีหลังนะ", hint: "Future Simple (will)" },
+
+            // ชุดที่ 8: อาการและความรู้สึก (Health & Feelings)
+            { en: "I have a headache.", th: "ฉันปวดหัว", hint: "Verb to have + illness" },
+            { en: "She feels sick today.", th: "วันนี้เธอรู้สึกป่วย", hint: "Linking verb (feels) + Adjective" },
+            { en: "You should see a doctor.", th: "คุณควรไปหาหมอนะ", hint: "Modal verb (should) for advice" },
+            { en: "Are you okay?", th: "คุณโอเคไหม?", hint: "Yes/No Question" },
+            { en: "I am scared of ghosts.", th: "ฉันกลัวผี", hint: "Adjective + Preposition (scared of)" },
+            { en: "He is very excited.", th: "เขารู้สึกตื่นเต้นมาก", hint: "Adjective ending in -ed (feeling)" },
+            { en: "This game is exciting.", th: "เกมนี้น่าตื่นเต้น", hint: "Adjective ending in -ing (cause of feeling)" },
+            { en: "My leg hurts.", th: "ขาของฉันเจ็บ", hint: "Subject + Verb" },
+            { en: "Take this medicine.", th: "กินยานี้นะ", hint: "Imperative sentence" },
+            { en: "I feel much better now.", th: "ฉันรู้สึกดีขึ้นมากแล้วตอนนี้", hint: "Comparative Adjective (better)" },
+
+            // ชุดที่ 9: ลักษณะบุคคลและสิ่งของ (Descriptions)
+            { en: "She has long hair.", th: "เธอมีผมยาว", hint: "Adjective + Noun" },
+            { en: "He is taller than me.", th: "เขาสูงกว่าฉัน", hint: "Comparative Adjective (-er than)" },
+            { en: "This box is very heavy.", th: "กล่องใบนี้หนักมาก", hint: "Subject + Verb to be + Adjective" },
+            { en: "The elephant is the biggest land animal.", th: "ช้างเป็นสัตว์บกที่ใหญ่ที่สุด", hint: "Superlative Adjective (the biggest)" },
+            { en: "My new shoes are comfortable.", th: "รองเท้าคู่ใหม่ของฉันใส่สบาย", hint: "Subject + Verb to be + Adjective" },
+            { en: "That is a beautiful flower.", th: "นั่นคือดอกไม้ที่สวยงาม", hint: "Demonstrative + Adjective + Noun" },
+            { en: "The water is too cold.", th: "น้ำเย็นเกินไป", hint: "Adverb of degree (too)" },
+            { en: "He is a hard-working student.", th: "เขาเป็นนักเรียนที่ขยันขันแข็ง", hint: "Compound Adjective" },
+            { en: "Her dress is red and white.", th: "ชุดของเธอมีสีแดงและสีขาว", hint: "Noun + Verb to be + Colors" },
+            { en: "The car moves very fast.", th: "รถคันนั้นเคลื่อนที่เร็วมาก", hint: "Action Verb + Adverb (fast)" },
+
+            // ชุดที่ 10: ประโยคเงื่อนไขและอื่นๆ (Conditionals & Mixed)
+            { en: "If it rains, I will stay home.", th: "ถ้าฝนตก ฉันจะอยู่บ้าน", hint: "First Conditional (If + V.1, will + V.1)" },
+            { en: "Wait for me, please.", th: "รอฉันด้วย ได้โปรด", hint: "Imperative + Preposition (for)" },
+            { en: "How much is this shirt?", th: "เสื้อตัวนี้ราคาเท่าไหร่?", hint: "Question for price (How much)" },
+            { en: "How many apples do you want?", th: "คุณต้องการแอปเปิ้ลกี่ลูก?", hint: "Question for quantity (How many)" },
+            { en: "I have been to London.", th: "ฉันเคยไปลอนดอน", hint: "Present Perfect (Experience)" },
+            { en: "Have you finished yet?", th: "คุณทำเสร็จหรือยัง?", hint: "Present Perfect Question" },
+            { en: "The test was very easy.", th: "ข้อสอบง่ายมากๆ", hint: "Past tense of Verb to be (was)" },
+            { en: "Don't forget your umbrella.", th: "อย่าลืมร่มของคุณนะ", hint: "Negative Imperative" },
+            { en: "I agree with you.", th: "ฉันเห็นด้วยกับคุณ", hint: "Verb + Preposition (agree with)" },
+            { en: "Thank you for your help.", th: "ขอบคุณสำหรับความช่วยเหลือของคุณ", hint: "Preposition (for) + Noun phrase" },
+
+            // ชุดที่ 11: อาชีพและการทำงาน (Jobs & Occupations)
+            { en: "What do you do?", th: "คุณทำงานอะไร?", hint: "Wh-Question for occupation" },
+            { en: "My mother is a nurse.", th: "แม่ของฉันเป็นพยาบาล", hint: "Subject + Verb to be + Occupation" },
+            { en: "He wants to be a pilot.", th: "เขาอยากเป็นนักบิน", hint: "Verb (wants) + to be" },
+            { en: "The farmer works on a farm.", th: "ชาวนาทำงานในฟาร์ม", hint: "Present Simple + Preposition (on)" },
+            { en: "Teachers work at schools.", th: "คุณครูทำงานที่โรงเรียน", hint: "Plural Subject + Verb (work)" },
+            { en: "A baker makes bread.", th: "คนทำขนมปังทำขนมปัง", hint: "Present Simple (makes)" },
+            { en: "She is a good singer.", th: "เธอเป็นนักร้องที่ดี", hint: "Adjective + Noun" },
+            { en: "Does your father work here?", th: "พ่อของคุณทำงานที่นี่หรือเปล่า?", hint: "Yes/No Question (Does)" },
+            { en: "He fixes cars.", th: "เขาซ่อมรถยนต์", hint: "Present Simple (fixes)" },
+            { en: "I am a student.", th: "ฉันเป็นนักเรียน", hint: "Subject + Verb to be + Noun" },
+
+            // ชุดที่ 12: สัตว์และธรรมชาติ (Animals & Nature)
+            { en: "Birds can fly high.", th: "นกสามารถบินได้สูง", hint: "Modal verb (can) + Adverb" },
+            { en: "Fish live in the water.", th: "ปลาอาศัยอยู่ในน้ำ", hint: "Subject (Plural) + Verb + Preposition" },
+            { en: "The lion is the king of the jungle.", th: "สิงโตเป็นเจ้าป่า", hint: "Noun phrase with 'of'" },
+            { en: "Monkeys like to eat bananas.", th: "ลิงชอบกินกล้วย", hint: "Verb (like) + to + Infinitive" },
+            { en: "Have you ever seen a panda?", th: "คุณเคยเห็นแพนด้าไหม?", hint: "Present Perfect (Experience)" },
+            { en: "The moon shines at night.", th: "ดวงจันทร์ส่องแสงในตอนกลางคืน", hint: "Preposition of time (at night)" },
+            { en: "Flowers need sunlight and water.", th: "ดอกไม้ต้องการแสงแดดและน้ำ", hint: "Plural subject + Verb (need)" },
+            { en: "It is a beautiful mountain.", th: "มันคือภูเขาที่สวยงาม", hint: "Adjective + Noun" },
+            { en: "Look at the stars.", th: "มองไปที่ดวงดาวสิ", hint: "Imperative + Preposition (at)" },
+            { en: "Tigers are dangerous animals.", th: "เสือเป็นสัตว์ที่อันตราย", hint: "Adjective + Noun (Plural)" },
+
+            // ชุดที่ 13: ฤดูกาลและวันหยุด (Seasons & Holidays)
+            { en: "There are three seasons in Thailand.", th: "ประเทศไทยมี 3 ฤดู", hint: "There are + Plural Noun" },
+            { en: "I love summer holidays.", th: "ฉันรักวันหยุดฤดูร้อน", hint: "Subject + Verb + Object" },
+            { en: "It snows in winter.", th: "หิมะตกในฤดูหนาว", hint: "Present Simple (It snows)" },
+            { en: "Leaves fall in autumn.", th: "ใบไม้ร่วงในฤดูใบไม้ร่วง", hint: "Plural Noun (Leaves)" },
+            { en: "What is your favorite season?", th: "ฤดูที่คุณชอบที่สุดคือฤดูอะไร?", hint: "Wh-Question + Possessive Adjective" },
+            { en: "Merry Christmas!", th: "สุขสันต์วันคริสต์มาส", hint: "Holiday Greeting" },
+            { en: "Happy New Year!", th: "สวัสดีปีใหม่", hint: "Holiday Greeting" },
+            { en: "We give gifts to friends.", th: "พวกเรามอบของขวัญให้เพื่อน", hint: "Verb + Direct Object + Preposition (to)" },
+            { en: "Today is a holiday.", th: "วันนี้เป็นวันหยุด", hint: "Subject (Today) + Verb to be" },
+            { en: "Are you free this weekend?", th: "สุดสัปดาห์นี้คุณว่างไหม?", hint: "Question with Verb to be" },
+
+            // ชุดที่ 14: การซื้อของและราคา (Shopping & Prices)
+            { en: "Can I help you?", th: "มีอะไรให้ฉันช่วยไหม? (พนักงานขาย)", hint: "Polite offer (Can I...)" },
+            { en: "I am looking for a shirt.", th: "ฉันกำลังมองหาเสื้อเชิ้ต", hint: "Present Continuous (looking for)" },
+            { en: "Do you have this in size medium?", th: "คุณมีไซส์เอ็มไหม?", hint: "Yes/No Question in shopping" },
+            { en: "Can I try it on?", th: "ฉันขอลองใส่มันได้ไหม?", hint: "Phrasal verb (try on)" },
+            { en: "How much does it cost?", th: "สิ่งนี้ราคาเท่าไหร่?", hint: "Question asking for price" },
+            { en: "It is too expensive.", th: "มันแพงเกินไป", hint: "Adverb of degree (too) + Adjective" },
+            { en: "Do you have a discount?", th: "คุณมีส่วนลดไหม?", hint: "Verb to have in a question" },
+            { en: "I will take this one.", th: "ฉันจะเอาชิ้นนี้", hint: "Future Simple (will take)" },
+            { en: "Can I pay by credit card?", th: "ฉันขอจ่ายด้วยบัตรเครดิตได้ไหม?", hint: "Preposition (by) for payment" },
+            { en: "Here is your change.", th: "นี่คือเงินทอนของคุณ", hint: "Expression for giving something" },
+
+            // ชุดที่ 15: การเดินทางและยานพาหนะ (Travel & Vehicles)
+            { en: "How do you go to work?", th: "คุณไปทำงานอย่างไร?", hint: "Wh-Question (How)" },
+            { en: "I go to work by train.", th: "ฉันไปทำงานโดยรถไฟ", hint: "Preposition of transportation (by)" },
+            { en: "The bus is very slow.", th: "รถบัสช้ามาก", hint: "Subject + Verb to be + Adjective" },
+            { en: "Hurry up! We will miss the train.", th: "เร็วเข้า! พวกเราจะตกรถไฟ", hint: "Imperative + Future Simple" },
+            { en: "Where is the train station?", th: "สถานีรถไฟอยู่ที่ไหน?", hint: "Wh-Question (Where)" },
+            { en: "I want to travel the world.", th: "ฉันอยากเดินทางรอบโลก", hint: "Verb (want) + to + Infinitive" },
+            { en: "Fasten your seatbelt.", th: "คาดเข็มขัดนิรภัยของคุณด้วย", hint: "Imperative sentence" },
+            { en: "The plane is taking off.", th: "เครื่องบินกำลังบินขึ้น", hint: "Phrasal verb (take off) in Present Continuous" },
+            { en: "Have a safe trip.", th: "ขอให้เดินทางโดยสวัสดิภาพ", hint: "Wish / Greeting" },
+            { en: "We are lost.", th: "พวกเราหลงทางแล้ว", hint: "Verb to be + Adjective (lost)" },
+
+            // ชุดที่ 16: บ้านและงานบ้าน (Home & Chores)
+            { en: "Welcome to my house.", th: "ยินดีต้อนรับสู่บ้านของฉัน", hint: "Greeting + Preposition (to)" },
+            { en: "There are two bedrooms.", th: "มีห้องนอนสองห้อง", hint: "There are + Plural Noun" },
+            { en: "The kitchen is very clean.", th: "ห้องครัวสะอาดมาก", hint: "Subject + Verb to be + Adjective" },
+            { en: "Please wash the dishes.", th: "กรุณาล้างจานด้วย", hint: "Polite Request + Verb" },
+            { en: "I have to sweep the floor.", th: "ฉันต้องกวาดพื้น", hint: "Modal-like verb (have to)" },
+            { en: "Can you take out the trash?", th: "คุณช่วยเอาขยะไปทิ้งได้ไหม?", hint: "Phrasal verb (take out)" },
+            { en: "He is watering the plants.", th: "เขากำลังรดน้ำต้นไม้", hint: "Present Continuous (watering)" },
+            { en: "Make your bed every morning.", th: "จัดเตียงของคุณทุกเช้าด้วย", hint: "Imperative + Collocation (make a bed)" },
+            { en: "The television is in the living room.", th: "โทรทัศน์อยู่ในห้องนั่งเล่น", hint: "Preposition of place (in)" },
+            { en: "Lock the door before you leave.", th: "ล็อคประตูก่อนที่คุณจะออกไป", hint: "Imperative + Conjunction (before)" },
+
+            // ชุดที่ 17: ร่างกายมนุษย์ (The Human Body)
+            { en: "I have two eyes.", th: "ฉันมีตาสองดวง", hint: "Verb to have + Plural Noun" },
+            { en: "Touch your nose.", th: "จับจมูกของคุณ", hint: "Imperative sentence" },
+            { en: "Brush your teeth.", th: "แปรงฟันของคุณ", hint: "Imperative (Brush) + Irregular Plural (teeth)" },
+            { en: "Wash your hands.", th: "ล้างมือของคุณ", hint: "Imperative + Plural Noun" },
+            { en: "My feet are sore.", th: "เท้าของฉันเจ็บ", hint: "Irregular Plural (feet) + Verb to be" },
+            { en: "She has a beautiful smile.", th: "เธอมีรอยยิ้มที่สวยงาม", hint: "Verb (has) + Adjective + Noun" },
+            { en: "Close your eyes and sleep.", th: "หลับตาของคุณแล้วนอนซะ", hint: "Compound Imperative" },
+            { en: "He broke his arm yesterday.", th: "เขาแขนหักเมื่อวานนี้", hint: "Past Simple (broke)" },
+            { en: "Can you touch your toes?", th: "คุณแตะนิ้วเท้าตัวเองได้ไหม?", hint: "Modal (Can) + Verb" },
+            { en: "Nod your head if you understand.", th: "พยักหน้าถ้าคุณเข้าใจ", hint: "Conditional (if)" },
+
+            // ชุดที่ 18: กริยาท่าทางและสี (Actions & Colors)
+            { en: "The apple is red.", th: "แอปเปิ้ลมีสีแดง", hint: "Noun + Verb to be + Color" },
+            { en: "He is wearing a blue shirt.", th: "เขากำลังสวมเสื้อเชิ้ตสีฟ้า", hint: "Present Continuous + Color" },
+            { en: "Run as fast as you can.", th: "วิ่งให้เร็วที่สุดเท่าที่คุณจะทำได้", hint: "Comparative (as...as)" },
+            { en: "Jump over the box.", th: "กระโดดข้ามกล่อง", hint: "Preposition of movement (over)" },
+            { en: "Don't push your friends.", th: "อย่าผลักเพื่อนของคุณ", hint: "Negative Imperative" },
+            { en: "She is drawing a picture.", th: "เธอกำลังวาดรูป", hint: "Present Continuous" },
+            { en: "Can you sing this song?", th: "คุณร้องเพลงนี้ได้ไหม?", hint: "Modal (Can) for ability" },
+            { en: "Read the book quietly.", th: "อ่านหนังสือเงียบๆ", hint: "Imperative + Adverb (quietly)" },
+            { en: "Write your name on the paper.", th: "เขียนชื่อของคุณลงบนกระดาษ", hint: "Preposition of place (on)" },
+            { en: "Look left and right.", th: "มองซ้ายและมองขวา", hint: "Directions (left and right)" },
+
+            // ชุดที่ 19: ปฏิเสธและคำถามผสม (Mixed Negatives & Questions)
+            { en: "I don't like playing tennis.", th: "ฉันไม่ชอบเล่นเทนนิส", hint: "Negative Present Simple + Gerund" },
+            { en: "He didn't go to the party.", th: "เขาไม่ได้ไปงานปาร์ตี้", hint: "Negative Past Simple (didn't)" },
+            { en: "Are there any apples left?", th: "มีแอปเปิ้ลเหลือบ้างไหม?", hint: "Question (Are there any...)" },
+            { en: "Is there any milk in the fridge?", th: "มีนมในตู้เย็นบ้างไหม?", hint: "Question for Uncountable Noun (Is there any...)" },
+            { en: "I can't swim.", th: "ฉันว่ายน้ำไม่เป็น", hint: "Negative Modal (can't)" },
+            { en: "You shouldn't eat too much candy.", th: "คุณไม่ควรกินลูกอมมากเกินไป", hint: "Negative Modal for advice (shouldn't)" },
+            { en: "Isn't it beautiful?", th: "มันไม่สวยหรอกหรือ?", hint: "Negative Question" },
+            { en: "Why are you crying?", th: "คุณร้องไห้ทำไม?", hint: "Wh-Question (Why) + Present Continuous" },
+            { en: "When is your birthday?", th: "วันเกิดของคุณคือเมื่อไหร่?", hint: "Wh-Question (When)" },
+            { en: "Whose jacket is this?", th: "เสื้อแจ็คเก็ตตัวนี้เป็นของใคร?", hint: "Wh-Question for possession (Whose)" },
+
+            // ชุดที่ 20: ไวยากรณ์น่ารู้ (Useful Grammar Patterns)
+            { en: "I have been waiting for an hour.", th: "ฉันรอมาเป็นเวลาหนึ่งชั่วโมงแล้ว", hint: "Present Perfect Continuous" },
+            { en: "This is the best movie ever.", th: "นี่คือหนังที่ดีที่สุดที่เคยมีมา", hint: "Superlative Adjective (best)" },
+            { en: "She is as tall as her mother.", th: "เธอสูงเท่ากับแม่ของเธอ", hint: "Comparative (as + adjective + as)" },
+            { en: "I used to play games a lot.", th: "ฉันเคยเล่นเกมเยอะมาก", hint: "Past habit (used to)" },
+            { en: "Do you mind if I sit here?", th: "คุณจะรังเกียจไหมถ้าฉันนั่งตรงนี้?", hint: "Polite Request (Do you mind...)" },
+            { en: "I am interested in science.", th: "ฉันสนใจในวิทยาศาสตร์", hint: "Adjective + Preposition (interested in)" },
+            { en: "She is afraid of spiders.", th: "เธอกลัวแมงมุม", hint: "Adjective + Preposition (afraid of)" },
+            { en: "Thank you for listening.", th: "ขอบคุณสำหรับการรับฟัง", hint: "Preposition (for) + Gerund (V.ing)" },
+            { en: "It takes ten minutes.", th: "มันใช้เวลาสิบนาที", hint: "Expression for duration (It takes...)" },
+            { en: "Have you finished your homework?", th: "คุณทำการบ้านเสร็จหรือยัง?", hint: "Present Perfect Question" },
+
+            // ชุดที่ 21: เทคโนโลยีและอุปกรณ์ (Technology & Gadgets)
+            { en: "I play games on my phone.", th: "ฉันเล่นเกมบนโทรศัพท์ของฉัน", hint: "Preposition (on) + Noun" },
+            { en: "Turn on the computer, please.", th: "กรุณาเปิดคอมพิวเตอร์", hint: "Phrasal Verb (Turn on)" },
+            { en: "My battery is running low.", th: "แบตเตอรี่ของฉันใกล้หมดแล้ว", hint: "Present Continuous" },
+            { en: "Can I borrow your charger?", th: "ฉันขอยืมที่ชาร์จของคุณได้ไหม?", hint: "Request (Can I...)" },
+            { en: "The internet is very fast here.", th: "อินเทอร์เน็ตที่นี่เร็วมาก", hint: "Subject + Verb to be + Adjective" },
+            { en: "Don't play on your phone too much.", th: "อย่าเล่นโทรศัพท์มากเกินไป", hint: "Negative Imperative" },
+            { en: "Send me a message later.", th: "ส่งข้อความหาฉันทีหลังนะ", hint: "Imperative + Indirect Object" },
+            { en: "I watch videos on the internet.", th: "ฉันดูวิดีโอบนอินเทอร์เน็ต", hint: "Present Simple" },
+            { en: "She is taking a photo.", th: "เธอกำลังถ่ายรูป", hint: "Present Continuous" },
+            { en: "I need to print this document.", th: "ฉันต้องพิมพ์เอกสารนี้", hint: "Verb (need) + to + Infinitive" },
+
+            // ชุดที่ 22: ความรู้สึกและบุคลิกภาพ (Feelings & Personality)
+            { en: "He is a very kind person.", th: "เขาเป็นคนที่ใจดีมาก", hint: "Adjective + Noun" },
+            { en: "She is shy but friendly.", th: "เธอขี้อายแต่เป็นมิตร", hint: "Adjective + Conjunction (but)" },
+            { en: "I feel sleepy after lunch.", th: "ฉันรู้สึกง่วงนอนหลังอาหารเที่ยง", hint: "Linking Verb (feel) + Adjective" },
+            { en: "Don't be angry with me.", th: "อย่าโกรธฉันเลยนะ", hint: "Negative Imperative (Don't be)" },
+            { en: "They were surprised by the news.", th: "พวกเขาประหลาดใจกับข่าวนี้", hint: "Passive voice feeling (-ed)" },
+            { en: "You are very brave.", th: "คุณกล้าหาญมาก", hint: "Subject + Verb to be + Adjective" },
+            { en: "It is boring to stay at home.", th: "มันน่าเบื่อที่ต้องอยู่บ้าน", hint: "Adjective (-ing) for situations" },
+            { en: "I am proud of you.", th: "ฉันภูมิใจในตัวคุณ", hint: "Adjective + Preposition (proud of)" },
+            { en: "Why are you so quiet today?", th: "ทำไมวันนี้คุณเงียบจัง?", hint: "Wh-Question with Verb to be" },
+            { en: "He is a funny boy.", th: "เขาเป็นเด็กผู้ชายที่ตลก", hint: "Adjective + Noun" },
+
+            // ชุดที่ 23: อาหารและการสั่งอาหาร (Food & Dining out)
+            { en: "A table for two, please.", th: "ขอโต๊ะสำหรับสองที่ครับ/ค่ะ", hint: "Restaurant phrase" },
+            { en: "Can I have the menu?", th: "ฉันขอเมนูหน่อยได้ไหม?", hint: "Polite request" },
+            { en: "What would you like to drink?", th: "คุณรับเครื่องดื่มอะไรดีคะ/ครับ?", hint: "Polite offer (would like)" },
+            { en: "I would like a glass of water.", th: "ฉันขอน้ำเปล่าหนึ่งแก้ว", hint: "Polite request (would like)" },
+            { en: "This food is very spicy.", th: "อาหารนี้เผ็ดมาก", hint: "Subject + Verb to be + Adjective" },
+            { en: "Keep the change.", th: "ไม่ต้องทอน", hint: "Imperative / Common phrase" },
+            { en: "The soup is too salty.", th: "ซุปเค็มเกินไป", hint: "Adverb of degree (too) + Adjective" },
+            { en: "Are you ready to order?", th: "คุณพร้อมสั่งอาหารหรือยัง?", hint: "Question with Verb to be" },
+            { en: "I prefer chicken to pork.", th: "ฉันชอบไก่มากกว่าหมู", hint: "Verb (prefer) + Noun + to + Noun" },
+            { en: "We had a great dinner.", th: "พวกเรามีมื้อค่ำที่ยอดเยี่ยม", hint: "Past Simple (had)" },
+
+            // ชุดที่ 24: คำบุพบทและตำแหน่ง (Prepositions & Locations)
+            { en: "The picture is on the wall.", th: "รูปภาพอยู่บนกำแพง", hint: "Preposition of place (on)" },
+            { en: "My shoes are under the bed.", th: "รองเท้าของฉันอยู่ใต้เตียง", hint: "Preposition of place (under)" },
+            { en: "Walk across the street carefully.", th: "เดินข้ามถนนอย่างระมัดระวัง", hint: "Preposition of movement (across)" },
+            { en: "The bird flew over the tree.", th: "นกบินข้ามต้นไม้ไป", hint: "Past Simple + Preposition (over)" },
+            { en: "Stand behind the yellow line.", th: "ยืนหลังเส้นสีเหลือง", hint: "Preposition of place (behind)" },
+            { en: "The shop is between the bank and the school.", th: "ร้านคาอยู่ระหว่างธนาคารและโรงเรียน", hint: "Preposition (between...and)" },
+            { en: "I put my keys in my pocket.", th: "ฉันใส่กุญแจไว้ในกระเป๋ากางเกง", hint: "Past Simple + Preposition (in)" },
+            { en: "There is a dog in front of the house.", th: "มีสุนัขอยู่หน้าบ้าน", hint: "Preposition of place (in front of)" },
+            { en: "He walked into the room.", th: "เขาเดินเข้าไปในห้อง", hint: "Preposition of movement (into)" },
+            { en: "Go out of the building now.", th: "ออกไปจากอาคารเดี๋ยวนี้", hint: "Preposition of movement (out of)" },
+
+            // ชุดที่ 25: คำถามและข้อมูล (Questions & Information)
+            { en: "How much money do you have?", th: "คุณมีเงินเท่าไหร่?", hint: "Question (How much + Uncountable Noun)" },
+            { en: "How many students are there?", th: "มีนักเรียนกี่คน?", hint: "Question (How many + Plural Noun)" },
+            { en: "How far is the hospital?", th: "โรงพยาบาลอยู่ไกลแค่ไหน?", hint: "Question for distance (How far)" },
+            { en: "How long does it take?", th: "มันใช้เวลานานแค่ไหน?", hint: "Question for duration (How long)" },
+            { en: "How often do you play games?", th: "คุณเล่นเกมบ่อยแค่ไหน?", hint: "Question for frequency (How often)" },
+            { en: "Which one do you want?", th: "คุณต้องการอันไหน?", hint: "Question word (Which)" },
+            { en: "Whose bag is this?", th: "กระเป๋าใบนี้เป็นของใคร?", hint: "Question word for possession (Whose)" },
+            { en: "What happened here?", th: "เกิดอะไรขึ้นที่นี่?", hint: "Wh-Question (What) + Past Simple" },
+            { en: "Why did you do that?", th: "ทำไมคุณถึงทำแบบนั้น?", hint: "Wh-Question (Why) + Past Simple" },
+            { en: "Who is the tallest in your class?", th: "ใครสูงที่สุดในชั้นเรียนของคุณ?", hint: "Wh-Question (Who) + Superlative" },
+
+            // ชุดที่ 26: การเดินทางและสภาพอากาศ (Travel & Weather)
+            { en: "Don't forget to bring your umbrella.", th: "อย่าลืมนำร่มมาด้วยนะ", hint: "Negative Imperative + to + Infinitive" },
+            { en: "The weather is getting hotter.", th: "อากาศกำลังร้อนขึ้น", hint: "Present Continuous + Comparative" },
+            { en: "It rained heavily last night.", th: "ฝนตกหนักมากเมื่อคืนนี้", hint: "Past Simple + Adverb (heavily)" },
+            { en: "We stayed at a nice hotel.", th: "พวกเราพักที่โรงแรมที่สวยงาม", hint: "Past Simple (stayed)" },
+            { en: "Did you pack your suitcase?", th: "คุณจัดกระเป๋าเดินทางหรือยัง?", hint: "Past Simple Question" },
+            { en: "The wind is blowing strongly.", th: "ลมกำลังพัดแรง", hint: "Present Continuous + Adverb" },
+            { en: "I love watching the sunset.", th: "ฉันชอบดูพระอาทิตย์ตก", hint: "Verb (love) + Gerund" },
+            { en: "Have you ever seen the snow?", th: "คุณเคยเห็นหิมะไหม?", hint: "Present Perfect Question" },
+            { en: "Let's go swimming in the sea.", th: "ไปว่ายน้ำในทะเลกันเถอะ", hint: "Suggestion (Let's go + V.ing)" },
+            { en: "The flight was delayed.", th: "เที่ยวบินล่าช้า", hint: "Passive Voice (was + V.3)" },
+
+            // ชุดที่ 27: สุขภาพและร่างกาย (Health & Body)
+            { en: "I have a stomachache.", th: "ฉันปวดท้อง", hint: "Verb to have + illness" },
+            { en: "He caught a cold yesterday.", th: "เขาเป็นหวัดเมื่อวานนี้", hint: "Past Simple (caught)" },
+            { en: "Drink plenty of water every day.", th: "ดื่มน้ำเยอะๆ ทุกวัน", hint: "Imperative + Quantifier (plenty of)" },
+            { en: "Eating vegetables is good for you.", th: "การกินผักเป็นสิ่งที่ดีสำหรับคุณ", hint: "Gerund as Subject" },
+            { en: "Did you take your medicine?", th: "คุณกินยาหรือยัง?", hint: "Past Simple Question" },
+            { en: "You look very pale today.", th: "วันนี้คุณดูหน้าซีดมาก", hint: "Linking verb (look) + Adjective" },
+            { en: "I need to rest for a while.", th: "ฉันต้องพักผ่อนสักหน่อย", hint: "Verb (need) + to + Infinitive" },
+            { en: "Exercise makes you strong.", th: "การออกกำลังกายทำให้คุณแข็งแรง", hint: "Subject + Verb (makes) + Object + Adjective" },
+            { en: "Brush your hair before you go.", th: "หวีผมก่อนที่คุณจะไป", hint: "Imperative + Conjunction (before)" },
+            { en: "Wash your face with clean water.", th: "ล้างหน้าด้วยน้ำสะอาด", hint: "Imperative + Preposition (with)" },
+
+            // ชุดที่ 28: การช่วยเหลือและกริยาช่วย (Helping & Suggestions)
+            { en: "Let me help you with that.", th: "ให้ฉันช่วยคุณเรื่องนั้นนะ", hint: "Let + Object + Verb (help)" },
+            { en: "Should we call a taxi?", th: "พวกเราควรเรียกแท็กซี่ไหม?", hint: "Modal Question (Should)" },
+            { en: "You had better go now.", th: "คุณรีบไปตอนนี้ดีกว่า", hint: "Advice (had better + V.1)" },
+            { en: "Would you mind opening the window?", th: "คุณจะรังเกียจไหมที่จะเปิดหน้าต่าง?", hint: "Polite Request (Would you mind + V.ing)" },
+            { en: "I can do it by myself.", th: "ฉันทำเองได้", hint: "Modal (can) + Reflexive Pronoun (by myself)" },
+            { en: "We must finish this today.", th: "พวกเราต้องทำสิ่งนี้ให้เสร็จวันนี้", hint: "Modal (must) for obligation" },
+            { en: "You don't have to worry.", th: "คุณไม่จำเป็นต้องกังวล", hint: "Negative Modal (don't have to)" },
+            { en: "Shall we go together?", th: "พวกเราไปด้วยกันไหม?", hint: "Suggestion (Shall we...)" },
+            { en: "It is important to read instructions.", th: "การอ่านคำแนะนำเป็นสิ่งสำคัญ", hint: "Adjective + to + Infinitive" },
+            { en: "Be careful with that knife!", th: "ระวังมีดเล่มนั้นด้วย!", hint: "Imperative with Adjective (Be careful)" },
+
+            // ชุดที่ 29: งานอดิเรกและความสนุก (Hobbies & Fun)
+            { en: "Do you like collecting stamps?", th: "คุณชอบสะสมแสตมป์ไหม?", hint: "Verb (like) + Gerund (V.ing)" },
+            { en: "We play board games on Sunday.", th: "พวกเราเล่นบอร์ดเกมในวันอาทิตย์", hint: "Present Simple + Preposition of time (on)" },
+            { en: "He plays the drums very well.", th: "เขาตีกลองได้เก่งมาก", hint: "Present Simple + Adverb" },
+            { en: "She is good at drawing cartoons.", th: "เธอเก่งเรื่องการวาดการ์ตูน", hint: "Adjective + Preposition (good at) + Gerund" },
+            { en: "Have you read this comic book?", th: "คุณเคยอ่านหนังสือการ์ตูนเล่มนี้ไหม?", hint: "Present Perfect Question" },
+            { en: "Singing makes me feel happy.", th: "การร้องเพลงทำให้ฉันรู้สึกมีความสุข", hint: "Gerund as Subject" },
+            { en: "I spend my free time reading.", th: "ฉันใช้เวลาว่างไปกับการอ่านหนังสือ", hint: "Verb (spend) + Object + Gerund" },
+            { en: "Let's take a photo together.", th: "มาถ่ายรูปด้วยกันเถอะ", hint: "Suggestion (Let's + Base Verb)" },
+            { en: "Magic tricks are amazing.", th: "มายากลเป็นสิ่งที่น่าทึ่ง", hint: "Adjective ending in -ing" },
+            { en: "Who won the match?", th: "ใครชนะการแข่งขัน?", hint: "Wh-Question (Who) + Past Simple" },
+
+            // ชุดที่ 30: รวมไวยากรณ์ (Mixed Grammar Reviews)
+            { en: "If you study hard, you will pass.", th: "ถ้าคุณเรียนหนัก คุณจะสอบผ่าน", hint: "First Conditional" },
+            { en: "The book was written by him.", th: "หนังสือเล่มนี้ถูกเขียนโดยเขา", hint: "Passive Voice (was + V.3)" },
+            { en: "Tell me the truth.", th: "บอกความจริงกับฉันมา", hint: "Imperative (Tell) + Indirect Object" },
+            { en: "I have never been to China.", th: "ฉันไม่เคยไปประเทศจีน", hint: "Present Perfect (Experience)" },
+            { en: "He is old enough to drive.", th: "เขาอายุมากพอที่จะขับรถ", hint: "Adjective + enough + to + Infinitive" },
+            { en: "Both of them are my friends.", th: "พวกเขาทั้งสองคนเป็นเพื่อนของฉัน", hint: "Pronoun (Both of them)" },
+            { en: "Nobody knows the answer.", th: "ไม่มีใครรู้คำตอบ", hint: "Indefinite Pronoun (Nobody) + Singular Verb" },
+            { en: "There is nothing in the box.", th: "ไม่มีอะไรอยู่ในกล่อง", hint: "Indefinite Pronoun (nothing)" },
+            { en: "It is raining cats and dogs.", th: "ฝนตกหนักมาก", hint: "Idiom (raining cats and dogs)" },
+            { en: "See you later, alligator!", th: "แล้วเจอกันใหม่นะ!", hint: "Fun rhyming farewell phrase" }
+        ];
+
+        // State
+        let audioCtx;
+        let questionQueue = [];
+        let currentQ = null;
+        let poolWords = [];
+        let targetWords = [];
+        
+        let score = 0;
+        let streak = 0;
+        let hearts = 5;
+        let maxTime = 24;
+        let timeLeft = 24;
+        let timerInterval;
+        let isChecking = false;
+        let isFrozen = false;
+
+        let modifiers = { nextTimeBonus: 0, extraHearts: 0, freezeNextRound: false, halveTimeNextRound: false };
+        let currentChestOutcome = 'win'; // 'win' or 'lose'
+        let currentChoices = [];
+
+        function getWinPool() {
+            const randScore = Math.floor(Math.random() * 51) + 25; // 25-75
+            const pool = [
+                { label: `+${randScore} คะแนน!`, action: () => score += randScore, color: "text-blue-400" },
+                { label: "+5 วิ รอบหน้า!", action: () => modifiers.nextTimeBonus += 5, color: "text-green-400" },
+                { label: "แกล้ง! -5 วิ รอบหน้า", action: () => modifiers.nextTimeBonus -= 5, color: "text-red-400" },
+                { label: "+1 หัวใจ รอบหน้า!", action: () => modifiers.extraHearts += 1, color: "text-pink-400" },
+                { label: "แช่แข็งปุ่ม 3 วิ!", action: () => modifiers.freezeNextRound = true, color: "text-cyan-400" },
+                { label: "ลดเวลาครึ่งนึง!", action: () => modifiers.halveTimeNextRound = true, color: "text-orange-400" }
+            ];
+            return shuffleArray(pool).slice(0, 3);
+        }
+
+        function getLosePool() {
+            const randScore1 = Math.floor(Math.random() * 50) + 1; // 1-50
+            const randScore2 = Math.floor(Math.random() * 50) + 1; // 1-50
+            const pool = [
+                { label: `-${randScore1} คะแนน`, action: () => score = Math.max(0, score - randScore1), color: "text-red-400" },
+                { label: "โชคดี! ไม่เสียคะแนน", action: () => {}, color: "text-yellow-400" },
+                { label: `ซวย! -${randScore2} แต้ม & -5 วิ`, action: () => { score = Math.max(0, score - randScore2); modifiers.nextTimeBonus -= 5; }, color: "text-purple-400" }
+            ];
+            return shuffleArray(pool).slice(0, 3);
+        }
+
+        // Elements
+        const startScreen = document.getElementById('startScreen');
+        const gameContainer = document.getElementById('gameContainer');
+        const targetArea = document.getElementById('targetArea');
+        const wordBank = document.getElementById('wordBank');
+        const timerFill = document.getElementById('timerFill');
+        const timeTextEl = document.getElementById('timeTextEl');
+        const feedbackMsg = document.getElementById('feedbackMsg');
+        const grammarHint = document.getElementById('grammarHint');
+
+        // Audio
+        function initAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+        }
+        function playBeep(type) {
+            if (!audioCtx) return;
+            const t = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            if (type === 'pop') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(500, t);
+                osc.frequency.exponentialRampToValueAtTime(1000, t + 0.1);
+                gain.gain.setValueAtTime(0.3, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.1);
+                osc.start(t); osc.stop(t + 0.1);
+            } else if (type === 'success') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(523.25, t);
+                osc.frequency.setValueAtTime(659.25, t + 0.1);
+                osc.frequency.setValueAtTime(783.99, t + 0.2);
+                gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.5);
+                osc.start(t); osc.stop(t + 0.5);
+            } else if (type === 'error') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(150, t);
+                osc.frequency.linearRampToValueAtTime(100, t + 0.3);
+                gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.3);
+                osc.start(t); osc.stop(t + 0.3);
+            } else if (type === 'chest') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(400, t);
+                osc.frequency.exponentialRampToValueAtTime(800, t + 0.3);
+                gain.gain.setValueAtTime(0.2, t); gain.gain.exponentialRampToValueAtTime(0.01, t + 0.4);
+                osc.start(t); osc.stop(t + 0.4);
+            }
+        }
+        function speakText(text) {
+            if ('speechSynthesis' in window) {
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US'; utterance.rate = 0.9;
+                window.speechSynthesis.speak(utterance);
+            }
+        }
+
+        // Game Init
+        function initGame() {
+            const nameInput = document.getElementById('playerNameInput');
+            if (!nameInput.value.trim()) {
+                nameInput.classList.add('anim-shake');
+                playBeep('error');
+                setTimeout(() => nameInput.classList.remove('anim-shake'), 400);
+                return;
+            }
+            playerName = nameInput.value.trim();
+
+            initAudio();
+            playBeep('pop');
+            startScreen.style.opacity = '0';
+            setTimeout(() => {
+                startScreen.style.display = 'none';
+                gameContainer.style.opacity = '1';
+                gameContainer.style.pointerEvents = 'auto';
+            }, 500);
+
+            questionQueue = shuffleArray([...SENTENCES]);
+            score = 0; streak = 0; hearts = 5; 
+            modifiers = { nextTimeBonus: 0, extraHearts: 0, freezeNextRound: false, halveTimeNextRound: false };
+            isFrozen = false;
+            loadQuestion();
+        }
+
+        function loadQuestion() {
+            if (questionQueue.length === 0) questionQueue = shuffleArray([...SENTENCES]);
+            currentQ = questionQueue.pop();
+            poolWords = []; targetWords = [];
+            isChecking = false;
+
+            // Apply modifiers & calculate time
+            let baseTime = streak >= 10 ? 8 : (streak >= 5 ? 16 : 24);
+            maxTime = baseTime + modifiers.nextTimeBonus;
+            
+            if (modifiers.halveTimeNextRound) {
+                maxTime = Math.floor(maxTime / 2);
+            }
+            if (maxTime < 5) maxTime = 5; // min 5s
+            timeLeft = maxTime;
+            
+            if (modifiers.extraHearts > 0) {
+                hearts += modifiers.extraHearts;
+            }
+
+            if (modifiers.freezeNextRound) {
+                isFrozen = true;
+                document.getElementById('wordBank').classList.add('is-frozen');
+                setTimeout(() => {
+                    isFrozen = false;
+                    document.getElementById('wordBank').classList.remove('is-frozen');
+                    document.getElementById('targetArea').classList.remove('is-frozen');
+                    playBeep('pop');
+                }, 3000);
+            } else {
+                isFrozen = false;
+                document.getElementById('wordBank').classList.remove('is-frozen');
+            }
+
+            modifiers.nextTimeBonus = 0;
+            modifiers.extraHearts = 0;
+            modifiers.freezeNextRound = false;
+            modifiers.halveTimeNextRound = false;
+
+            const words = currentQ.en.split(' ');
+            const wordObjects = words.map((w, idx) => ({ id: 'w_'+Math.random().toString(36).substr(2, 9), text: w, index: idx }));
+            
+            let shuffled = shuffleArray(wordObjects);
+            while(shuffled.length > 1 && shuffled.map(w=>w.text).join(' ') === currentQ.en) {
+                shuffled = shuffleArray(wordObjects);
+            }
+            poolWords = shuffled;
+
+            document.getElementById('thaiHint').textContent = currentQ.th;
+            grammarHint.textContent = currentQ.hint;
+            grammarHint.style.display = 'none';
+            targetArea.className = "drop-zone rounded-xl min-h-[80px] p-3 flex flex-wrap content-start gap-2 border-2 border-dashed border-gray-600 transition-colors duration-300" + (isFrozen ? " is-frozen" : "");
+            feedbackMsg.style.opacity = '0';
+
+            updateStatsUI();
+            renderBoard();
+            startTimer();
+        }
+
+        function renderBoard() {
+            targetArea.innerHTML = '';
+            targetWords.forEach(obj => targetArea.appendChild(createBtn(obj, 'target')));
+            wordBank.innerHTML = '';
+            poolWords.forEach(obj => wordBank.appendChild(createBtn(obj, 'pool')));
+        }
+
+        function createBtn(obj, loc) {
+            const btn = document.createElement('div');
+            btn.textContent = obj.text;
+            btn.className = "word-btn text-sm md:text-base font-medium text-gray-100 px-3 py-2 flex items-center justify-center rounded-lg shadow-sm select-none";
+            btn.addEventListener('click', () => {
+                if(isChecking || isFrozen) return;
+                moveWord(obj.id, loc, loc === 'target' ? 'pool' : 'target');
+            });
+            return btn;
+        }
+
+        function moveWord(id, from, to) {
+            playBeep('pop');
+            let item;
+            if (from === 'pool') {
+                item = poolWords.splice(poolWords.findIndex(w => w.id === id), 1)[0];
+                targetWords.push(item);
+            } else {
+                item = targetWords.splice(targetWords.findIndex(w => w.id === id), 1)[0];
+                poolWords.push(item);
+            }
+            renderBoard();
+            
+            // Auto check
+            if (poolWords.length === 0 && targetWords.length > 0) {
+                isChecking = true;
+                clearInterval(timerInterval);
+                setTimeout(checkAnswer, 200);
+            }
+        }
+
+        function checkAnswer() {
+            const userSent = targetWords.map(w => w.text).join(' ');
+            const correctSent = currentQ.en;
+            
+            if (userSent === correctSent) {
+                // Correct
+                playBeep('success');
+                speakText(correctSent);
+                
+                score += 10 + streak; // Base score + streak bonus
+                streak++;
+                targetArea.classList.add('anim-success');
+                showFeedback("✔ ถูกต้อง! เลือกกล่องรางวัล", "text-green-400");
+                updateStatsUI();
+                
+                setTimeout(() => openMysteryModal('win'), 1500);
+            } else {
+                // Wrong
+                playBeep('error');
+                hearts--;
+                streak = 0;
+                // การหักคะแนนจะไปจัดการใน Lose Box 
+                
+                targetArea.classList.add('anim-shake');
+                updateStatsUI();
+                
+                showFeedback(hearts <= 0 ? "💔 หัวใจหมด! สุ่มกล่องชะตากรรม..." : "❌ ผิด! สุ่มกล่องชะตากรรม", "text-red-400");
+                setTimeout(() => openMysteryModal('lose'), 1500);
+            }
+        }
+
+        // Timer
+        function startTimer(resumeTime = maxTime) {
+            clearInterval(timerInterval);
+            timeLeft = resumeTime;
+            updateTimerUI();
+            
+            timerInterval = setInterval(() => {
+                if(isChecking) return;
+                timeLeft--;
+                updateTimerUI();
+                
+                if (timeLeft <= 0) {
+                    clearInterval(timerInterval);
+                    isChecking = true;
+                    playBeep('error');
+                    streak = 0; 
+                    hearts--;
+                    updateStatsUI();
+                    targetArea.classList.add('anim-timeout');
+                    
+                    showFeedback(hearts <= 0 ? "💔 หมดเวลาและหัวใจหมด!" : "⏰ หมดเวลา! สุ่มกล่องชะตากรรม", "text-yellow-400");
+                    setTimeout(() => openMysteryModal('lose'), 1500);
+                }
+            }, 1000);
+        }
+
+        function updateTimerUI() {
+            const pct = (timeLeft / maxTime) * 100;
+            timerFill.style.width = Math.max(0, pct) + '%';
+            timeTextEl.textContent = timeLeft + 's';
+            if (pct > 50) timerFill.style.backgroundColor = '#10b981';
+            else if (pct > 20) timerFill.style.backgroundColor = '#f59e0b';
+            else timerFill.style.backgroundColor = '#ef4444';
+        }
+
+        // Stats UI
+        function updateStatsUI() {
+            document.getElementById('scoreEl').textContent = score;
+            document.getElementById('streakEl').textContent = streak;
+            document.getElementById('heartsEl').textContent = hearts;
+        }
+        function showFeedback(msg, colorClass) {
+            feedbackMsg.textContent = msg;
+            feedbackMsg.className = `h-6 text-center font-bold text-sm md:text-base transition-opacity duration-300 ${colorClass}`;
+            feedbackMsg.style.opacity = '1';
+        }
+
+        // Helpers (Cost Time)
+        function triggerHelperShake(btnId) {
+            const btn = document.getElementById(btnId);
+            btn.classList.add('btn-shake');
+            playBeep('error');
+            setTimeout(() => btn.classList.remove('btn-shake'), 300);
+        }
+
+        function useHint() {
+            if (isChecking) return;
+            if (timeLeft <= 3) { triggerHelperShake('btnHint'); return; }
+            timeLeft -= 3; updateTimerUI(); playBeep('pop');
+            
+            const correctWords = currentQ.en.split(' ');
+            let targetIdx = -1;
+            for (let i = 0; i < correctWords.length; i++) {
+                if (!targetWords[i] || targetWords[i].text !== correctWords[i]) {
+                    targetIdx = i; break;
+                }
+            }
+            if (targetIdx !== -1) {
+                const neededWord = correctWords[targetIdx];
+                if (targetWords[targetIdx]) poolWords.push(targetWords.splice(targetIdx, 1)[0]);
+                
+                let foundIdx = poolWords.findIndex(w => w.text === neededWord);
+                if (foundIdx !== -1) {
+                    targetWords.splice(targetIdx, 0, poolWords.splice(foundIdx, 1)[0]);
+                } else {
+                    foundIdx = targetWords.findIndex((w, i) => i > targetIdx && w.text === neededWord);
+                    if (foundIdx !== -1) targetWords.splice(targetIdx, 0, targetWords.splice(foundIdx, 1)[0]);
+                }
+            }
+            renderBoard();
+            if (poolWords.length === 0) { isChecking=true; setTimeout(checkAnswer, 200); }
+        }
+
+        function useBroom() {
+            if (isChecking || targetWords.length === 0) return;
+            if (timeLeft <= 2) { triggerHelperShake('btnBroom'); return; }
+            timeLeft -= 2; updateTimerUI(); playBeep('pop');
+            
+            const correctWords = currentQ.en.split(' ');
+            let i = targetWords.length;
+            while (i--) {
+                if (targetWords[i].text !== correctWords[i]) {
+                    poolWords.push(targetWords.splice(i, 1)[0]);
+                }
+            }
+            renderBoard();
+        }
+
+        function useLightbulb() {
+            if (isChecking || grammarHint.style.display === 'inline-block') return;
+            if (timeLeft <= 2) { triggerHelperShake('btnLightbulb'); return; }
+            timeLeft -= 2; updateTimerUI(); playBeep('success');
+            grammarHint.style.display = 'inline-block';
+        }
+
+        // Mystery Modal
+        const mysteryModal = document.getElementById('mysteryModal');
+        function openMysteryModal(outcome) {
+            currentChestOutcome = outcome;
+            currentChoices = outcome === 'win' ? getWinPool() : getLosePool();
+            
+            document.getElementById('mysteryTitle').textContent = outcome === 'win' ? "สุดยอด! เลือกกล่องรางวัล" : "พลาดแล้ว! สุ่มรับชะตากรรม";
+            document.getElementById('mysteryTitle').className = outcome === 'win' ? "text-3xl font-bold text-green-400 mb-2 drop-shadow-md" : "text-3xl font-bold text-red-400 mb-2 drop-shadow-md";
+            
+            // CRITICAL FIX: Reset and generate exactly 3 chests every time to avoid missing chests bug
+            const chestContainer = document.getElementById('chestContainer');
+            chestContainer.innerHTML = ''; // ล้างกล่องเก่าทิ้งให้หมด
+            
+            for (let i = 0; i < 3; i++) {
+                const box = document.createElement('div');
+                box.className = 'chest-box';
+                box.innerHTML = '🎁';
+                box.onclick = () => openChest(box, i);
+                chestContainer.appendChild(box);
+            }
+
+            document.getElementById('chestResult').style.opacity = '0';
+            document.getElementById('nextBtn').classList.add('hidden');
+            
+            mysteryModal.classList.remove('hidden');
+            mysteryModal.classList.add('flex');
+        }
+
+        function openChest(selectedBox, index) {
+            playBeep('chest');
+            
+            const chests = document.querySelectorAll('.chest-box, .chest-opened');
+            
+            // Hide unselected and disable all clicks to prevent bugs
+            chests.forEach((c) => {
+                c.onclick = null; // ป้องกันการกดซ้ำ
+                if(c !== selectedBox) c.classList.add('chest-hidden');
+            });
+            
+            // Generate result from current choices
+            const result = currentChoices[index];
+            result.action();
+            updateStatsUI();
+
+            // Animate selected
+            selectedBox.classList.remove('chest-box');
+            selectedBox.classList.add('chest-opened', result.color);
+            selectedBox.innerHTML = `
+                <div class="bg-black/80 px-4 py-2 rounded-xl border border-white/20 shadow-xl text-center">
+                    ${result.label}
+                </div>
+            `;
+            
+            setTimeout(() => {
+                document.getElementById('nextBtn').classList.remove('hidden');
+            }, 800);
+        }
+
+        function nextQuestion() {
+            playBeep('pop');
+            mysteryModal.classList.remove('flex');
+            mysteryModal.classList.add('hidden');
+            
+            if (hearts <= 0) {
+                sendToDiscord(playerName, score); // ส่งคะแนนไปที่ Discord
+                hearts = 5; // เริ่มใหม่ด้วยหัวใจ 5 ดวงหลังจากหัวใจหมดและเปิดกล่อง
+                score = 0;  // รีเซ็ตคะแนนเมื่อตาย
+                streak = 0;
+            }
+            
+            loadQuestion();
+        }
+
+        async function sendToDiscord(name, finalScore) {
+            if (!DISCORD_WEBHOOK_URL || DISCORD_WEBHOOK_URL === "YOUR_DISCORD_WEBHOOK_URL_HERE") return;
+            try {
+                const payload = {
+                    content: `📢 **Game Over!**\n👤 Player: **${name}**\n🏆 Score: **${finalScore}**`
+                };
+                await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                
+                // Show toast notification
+                const toast = document.getElementById('discordToast');
+                toast.classList.remove('translate-x-[150%]');
+                setTimeout(() => toast.classList.add('translate-x-[150%]'), 3000);
+            } catch (err) {
+                console.error("Discord Webhook Error:", err);
+            }
+        }
+
+        function shuffleArray(arr) {
+            const newArr = [...arr];
+            for (let i = newArr.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [newArr[i], newArr[j]] = [newArr[j], newArr[i]];
+            }
+            return newArr;
+        }
+    </script>
+</body>
+</html>
